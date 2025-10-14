@@ -1,11 +1,20 @@
 {
-  "name": "effect-queue-streams",
-  "module": "index.ts",
-  "type": "module",
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
-  }
+	"name": "effect-queue-streams",
+	"module": "index.ts",
+	"type": "module",
+	"devDependencies": {
+		"@biomejs/biome": "2.2.6",
+		"@effect/language-service": "latest",
+		"@types/bun": "latest"
+	},
+	"peerDependencies": {
+		"typescript": "^5.0.0"
+	},
+	"dependencies": {
+		"@effect/platform": "latest",
+		"@effect/platform-bun": "latest",
+		"@effect/platform-node": "^0.98.3",
+		"@effect/rpc": "^0.71.0",
+		"effect": "latest"
+	}
 }
