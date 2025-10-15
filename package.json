@@ -1,19 +1,21 @@
 {
 	"name": "effect-queue-streams",
-	"module": "index.ts",
 	"type": "module",
+	"scripts": {
+		"build": "nitro build",
+		"dev": "nitro dev",
+		"preview": "npx srvx --prod .output/"
+	},
 	"devDependencies": {
 		"@biomejs/biome": "2.2.6",
 		"@effect/language-service": "latest",
-		"@types/bun": "latest"
-	},
-	"peerDependencies": {
-		"typescript": "^5.0.0"
+		"@types/bun": "latest",
+		"typescript": "^5.0.0",
+		"nitro": "latest"
 	},
 	"dependencies": {
 		"@effect/platform": "latest",
 		"@effect/platform-bun": "latest",
-		"@effect/platform-node": "^0.98.3",
 		"@effect/rpc": "^0.71.0",
 		"effect": "latest"
 	}

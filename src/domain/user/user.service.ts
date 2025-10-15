@@ -1,4 +1,4 @@
-import { Array, Effect, Queue, Random } from "effect";
+import { Effect, Queue, Random } from "effect";
 import { UserRepository } from "./user.repository";
 
 export class UserService extends Effect.Service<UserService>()(
@@ -6,13 +6,16 @@ export class UserService extends Effect.Service<UserService>()(
 	{
 		effect: Effect.gen(function* () {
 			const userRepo = yield* UserRepository;
+			const END = Symbol.for("END");
 
 			const getUsersQueue = Effect.fn("user-service.getUsersQueue")(
 				function* () {
-					const userQueue = yield* Queue.unbounded<number>();
+					const userQueue = yield* Queue.unbounded<number | typeof END>();
 					const users = yield* userRepo.getAll();
 					yield* Queue.offerAll(userQueue, users);
-					return userQueue;
+					yield* Queue.offer(userQueue, END);
+
+					return { queue: userQueue, endToken: END } as const;
 				},
 			);
 
