@@ -1,5 +1,5 @@
 import { HttpClientRequest } from "@effect/platform";
-import { Chunk, Effect, flow, Queue, Schedule, Stream } from "effect";
+import { Chunk, Effect, Fiber, flow, Queue, Schedule, Stream } from "effect";
 import { AppConfig } from "../config/app-config";
 import { UserService } from "../user/user.service";
 import { CronClient } from "./cron-client";
@@ -20,11 +20,9 @@ export class CronService extends Effect.Service<CronService>()(
 				id: number,
 			) {
 				const request = HttpClientRequest.get(
-					`${appConfig.BASE_URL}/process-user`,
-				).pipe(HttpClientRequest.setUrlParam("user", `${id}`));
-
-				yield* client.execute(request).pipe(Effect.fork);
-
+					`${appConfig.BASE_URL}/process-user/${id}`,
+				);
+				yield* client.execute(request).pipe(Effect.forkDaemon);
 				yield* Effect.log(`Processing user: ${id}`);
 			});
 
@@ -39,7 +37,6 @@ export class CronService extends Effect.Service<CronService>()(
 					Stream.takeUntil((c) => Chunk.contains(c, users.endToken)),
 					Stream.map((c) => Chunk.filter(c, (id) => id !== users.endToken)),
 					Stream.filter((c) => !Chunk.isEmpty(c)),
-					Stream.tap((users) => Effect.log(`Processing user chunk: $${users}`)),
 					Stream.mapEffect(
 						flow(
 							Stream.fromChunk,
@@ -47,6 +44,7 @@ export class CronService extends Effect.Service<CronService>()(
 							Stream.tap(processUser),
 							Stream.runDrain,
 						),
+						{ concurrency: "unbounded" },
 					),
 					Stream.runDrain,
 				);

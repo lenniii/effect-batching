@@ -6,8 +6,8 @@ declare module "nitro/types" {
     '/cron': {
       'get': Simplify<Serialize<Awaited<ReturnType<typeof import('../../src/routes/cron.get').default>>>>
     }
-    '/process-user': {
-      'get': Simplify<Serialize<Awaited<ReturnType<typeof import('../../src/routes/process-user.get').default>>>>
+    '/process-user/:id': {
+      'get': Simplify<Serialize<Awaited<ReturnType<typeof import('../../src/routes/process-user/[id].get').default>>>>
     }
     '/_nitro/tasks/**': {
       'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../node_modules/nitro/dist/runtime/internal/routes/dev-tasks').default>>>>

@@ -7,7 +7,7 @@ export class UserRepository extends Effect.Service<UserRepository>()(
 			getAll: Effect.fn("user-repository.getAll")(() =>
 				Random.nextIntBetween(100, 1000).pipe(
 					Effect.andThen((ms) => Effect.sleep(`${ms} millis`)),
-					Effect.map(() => Array.range(0, 99)),
+					Effect.map(() => Array.range(0, 49)),
 				),
 			),
 

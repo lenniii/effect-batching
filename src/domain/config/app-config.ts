@@ -1,4 +1,4 @@
-import { Config, ConfigProvider, Effect, Layer } from "effect";
+import { Config, ConfigProvider, Effect, Layer, Option, Schema } from "effect";
 
 export class AppConfig extends Effect.Service<AppConfig>()(
 	"effect-queue-streams/domain/config/app-config/AppConfig",
@@ -8,7 +8,12 @@ export class AppConfig extends Effect.Service<AppConfig>()(
 				Config.map((url) => `https://${url}`),
 				Config.withDefault("http://localhost:3000"),
 			);
-			return { BASE_URL };
+
+			const VERCEL_AUTOMATION_BYPASS_SECRET = yield* Config.redacted(
+				"VERCEL_AUTOMATION_BYPASS_SECRET",
+			).pipe(Config.option);
+
+			return { BASE_URL, VERCEL_AUTOMATION_BYPASS_SECRET };
 		}),
 		dependencies: [Layer.setConfigProvider(ConfigProvider.fromEnv())],
 	},

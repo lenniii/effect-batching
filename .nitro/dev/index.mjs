@@ -11,8 +11,8 @@ import { Server } from 'node:http';
 import nodeCrypto from 'node:crypto';
 import { parentPort, threadId } from 'node:worker_threads';
 import { isSocketSupported, getSocketAddress } from 'file:///Users/lenni/projects/effect-queue-streams/node_modules/nitro/dist/node_modules/get-port-please/dist/index.mjs';
-import { HttpClient, HttpClientRequest, FetchHttpClient, HttpServerRequest } from 'file:///Users/lenni/projects/effect-queue-streams/node_modules/@effect/platform/dist/esm/index.js';
-import { Effect, Layer, ConfigProvider, Config, Random, Array, Queue, Stream, Chunk, flow, Schedule, ManagedRuntime, Schema, DateTime } from 'file:///Users/lenni/projects/effect-queue-streams/node_modules/effect/dist/esm/index.js';
+import { HttpClient, HttpClientRequest, FetchHttpClient } from 'file:///Users/lenni/projects/effect-queue-streams/node_modules/@effect/platform/dist/esm/index.js';
+import { Effect, Layer, ConfigProvider, Config, Option, Redacted, Random, Array, Queue, Stream, Fiber, Chunk, flow, Schedule, ManagedRuntime, DateTime } from 'file:///Users/lenni/projects/effect-queue-streams/node_modules/effect/dist/esm/index.js';
 import { defineHandler as defineHandler$1 } from 'file:///Users/lenni/projects/effect-queue-streams/node_modules/nitro/lib/deps/h3.mjs';
 import { createStorage } from 'file:///Users/lenni/projects/effect-queue-streams/node_modules/unstorage/dist/index.mjs';
 import unstorage_47drivers_47fs from 'file:///Users/lenni/projects/effect-queue-streams/node_modules/unstorage/dist/drivers/fs.mjs';
@@ -167,22 +167,7 @@ for (const asset of serverAssets) {
   assets$1.mount(asset.baseName, unstorage_47drivers_47fs({ base: asset.dir, ignore: (asset?.ignore || []) }));
 }
 
-const assets = {
-  "/index.mjs.map": {
-    "type": "application/json",
-    "etag": "\"5b80-haj4CA/KsI9wdEWXVzy+LiaN8fA\"",
-    "mtime": "2025-10-15T12:53:15.482Z",
-    "size": 23424,
-    "path": "index.mjs.map"
-  },
-  "/index.mjs": {
-    "type": "text/javascript; charset=utf-8",
-    "etag": "\"5eb9-7kc+8w/8FeZHw332w4G3qHeAJFo\"",
-    "mtime": "2025-10-15T12:53:15.482Z",
-    "size": 24249,
-    "path": "index.mjs"
-  }
-};
+const assets = {};
 
 function readAsset (id) {
   const serverDir = dirname(fileURLToPath(globalThis.__nitro_main__));
@@ -274,10 +259,10 @@ const _8d_YKt = defineHandler((event) => {
 const findRouteRules = (m,p)=>{return [];};
 
 const _lazy_sAPd0N = defineLazyEventHandler(() => Promise.resolve().then(function () { return cron_get$1; }));
-const _lazy_mrNXc7 = defineLazyEventHandler(() => Promise.resolve().then(function () { return processUser_get$1; }));
+const _lazy_c56xaJ = defineLazyEventHandler(() => Promise.resolve().then(function () { return _id__get$1; }));
 const _lazy_nOxxis = defineLazyEventHandler(() => Promise.resolve().then(function () { return devTasks$1; }));
 
-const findRoute = (m,p)=>{if(p[p.length-1]==='/')p=p.slice(0,-1)||'/';if(p==="/cron"){if(m==='GET')return {data:{route:"/cron",method:"get",handler:_lazy_sAPd0N}};}if(p==="/process-user"){if(m==='GET')return {data:{route:"/process-user",method:"get",handler:_lazy_mrNXc7}};}let s=p.split('/');s.length-1;if(s[1]==="_nitro"){if(s[2]==="tasks"){return {data:{route:"/_nitro/tasks/**",handler:_lazy_nOxxis},params:{"_":s.slice(3).join('/'),}};}}};
+const findRoute = (m,p)=>{if(p[p.length-1]==='/')p=p.slice(0,-1)||'/';if(p==="/cron"){if(m==='GET')return {data:{route:"/cron",method:"get",handler:_lazy_sAPd0N}};}let s=p.split('/'),l=s.length-1;if(s[1]==="process-user"){if(l===2||l===1){if(m==='GET')if(l>=2)return {data:{route:"/process-user/:id",method:"get",handler:_lazy_c56xaJ},params:{"id":s[2],}};}}if(s[1]==="_nitro"){if(s[2]==="tasks"){return {data:{route:"/_nitro/tasks/**",handler:_lazy_nOxxis},params:{"_":s.slice(3).join('/'),}};}}};
 
 const findRoutedMiddleware = (m,p)=>{return [];};
 
@@ -522,19 +507,43 @@ class AppConfig extends Effect.Service()(
         Config.map((url) => `https://${url}`),
         Config.withDefault("http://localhost:3000")
       );
-      return { BASE_URL };
+      const VERCEL_AUTOMATION_BYPASS_SECRET = yield* Config.redacted(
+        "VERCEL_AUTOMATION_BYPASS_SECRET"
+      ).pipe(Config.option);
+      return { BASE_URL, VERCEL_AUTOMATION_BYPASS_SECRET };
     }),
     dependencies: [Layer.setConfigProvider(ConfigProvider.fromEnv())]
   }
 ) {
 }
 
+const withHeaders = (headers) => (self) => self.pipe(
+  HttpClient.mapRequest((req) => ({
+    ...req,
+    headers: { ...req.headers, ...headers }
+  }))
+);
 class CronClient extends Effect.Service()(
   "effect-queue-streams/domain/cron/cron-client/CronClient",
   {
     effect: Effect.gen(function* () {
+      const appConfig = yield* AppConfig;
       const client = yield* HttpClient.HttpClient;
-      return client.pipe(HttpClient.filterStatusOk);
+      const defaultHeaders = yield* Option.match(
+        appConfig.VERCEL_AUTOMATION_BYPASS_SECRET,
+        {
+          onNone: () => Effect.logWarning(
+            "Vercel Automation Bypass Secret not set, requests may fail"
+          ).pipe(() => Effect.succeed({})),
+          onSome: (secret) => Effect.succeed({
+            "x-vercel-protection-bypass": Redacted.value(secret)
+          })
+        }
+      );
+      return client.pipe(
+        HttpClient.filterStatusOk,
+        withHeaders(defaultHeaders)
+      );
     })
   }
 ) {
@@ -547,7 +556,7 @@ class UserRepository extends Effect.Service()(
       getAll: Effect.fn("user-repository.getAll")(
         () => Random.nextIntBetween(100, 1e3).pipe(
           Effect.andThen((ms) => Effect.sleep(`${ms} millis`)),
-          Effect.map(() => Array.range(0, 99))
+          Effect.map(() => Array.range(0, 5))
         )
       ),
       getUserById: Effect.fn("user-repository.getUserById")(
@@ -600,9 +609,10 @@ class CronService extends Effect.Service()(
       yield* Effect.log(`Queue size: ${yield* Queue.size(users.queue)}`);
       const processUser = Effect.fn("cron-service.processUser")(function* (id) {
         const request = HttpClientRequest.get(
-          `${appConfig.BASE_URL}/process-user`
-        ).pipe(HttpClientRequest.setUrlParam("user", `${id}`));
-        yield* client.execute(request).pipe(Effect.fork);
+          `${appConfig.BASE_URL}/process-user/${id}`
+        );
+        const res = yield* client.execute(request).pipe(Effect.fork);
+        yield* Fiber.join(res);
         yield* Effect.log(`Processing user: ${id}`);
       });
       const processUsers = Effect.fn("cron-service.processUsers")(function* () {
@@ -616,7 +626,6 @@ class CronService extends Effect.Service()(
           Stream.takeUntil((c) => Chunk.contains(c, users.endToken)),
           Stream.map((c) => Chunk.filter(c, (id) => id !== users.endToken)),
           Stream.filter((c) => !Chunk.isEmpty(c)),
-          Stream.tap((users2) => Effect.log(`Processing user chunk: $${users2}`)),
           Stream.mapEffect(
             flow(
               Stream.fromChunk,
@@ -654,13 +663,8 @@ const cron_get$1 = /*#__PURE__*/Object.freeze({
   default: cron_get
 });
 
-const main = Effect.gen(function* () {
+const main = (user) => Effect.gen(function* () {
   const userService = yield* UserService;
-  const { user } = yield* HttpServerRequest.schemaSearchParams(
-    Schema.Struct({
-      user: Schema.NumberFromString
-    })
-  );
   const start = yield* DateTime.now;
   yield* userService.processUser(user);
   const end = yield* DateTime.now;
@@ -675,16 +679,13 @@ const UserServiceLive = UserService.Default.pipe(
   Layer.provide(UserRepository.Default)
 );
 const ProcessUserRuntime = ManagedRuntime.make(UserServiceLive);
-const provideSearchParams = (searchParams) => Effect.provideService(HttpServerRequest.ParsedSearchParams, searchParams);
-const processUser_get = defineHandler$1(
-  (event) => ProcessUserRuntime.runPromise(
-    main.pipe(provideSearchParams(event.url.searchParams.toJSON()))
-  )
+const _id__get = defineHandler$1(
+  (event) => ProcessUserRuntime.runPromise(main(Number(event.context.params?.id)))
 );
 
-const processUser_get$1 = /*#__PURE__*/Object.freeze({
+const _id__get$1 = /*#__PURE__*/Object.freeze({
   __proto__: null,
-  default: processUser_get
+  default: _id__get
 });
 
 const devTasks = new H3().get("/_nitro/tasks", async () => {
